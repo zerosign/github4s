@@ -1,12 +1,12 @@
 package org.zerosign.github4s.client
 
-import cats.effect.{ ConcurrentEffect }
+import cats.effect.{ ConcurrentEffect, Resource }
 import fs2.Stream
 import org.http4s.Uri
 import org.http4s.client.Client
 import org.zerosign.github4s.data.Repository
 
-final class PullRequestClient[F[_]](pool: Stream[F, Client[F]], base: Uri, repository: Repository, user: String, token: String)
+final class PullRequestClient[F[_]](pool: Resource[F, Client[F]], base: Uri, repository: Repository, user: String, token: String)
   (implicit F: ConcurrentEffect[F]) extends GithubClient[F](pool, base, user, token) {
 
   import io.circe._
@@ -122,16 +122,14 @@ final class PullRequestClient[F[_]](pool: Stream[F, Client[F]], base: Uri, repos
 
   // GET /repos/:owner/:repo/pulls/comments/:comment_id
   @inline final def fetch(id: Int) : F[Either[GithubError, ReviewComment]] =
-    pool.flatMap { client =>
-      Stream.eval(
-        client.fetch[Either[GithubError, ReviewComment]](
-          Request[F](
-            uri = resolve(s"/repos/${repository.owner}/${repository.name}/pulls/comments/${id}"),
-            method = Method.GET
-          ).withHeaders(headers)
-        )(entityHandler[ReviewComment])
-      )
-    }.compile.lastOrError
+    pool.use { client =>
+      client.fetch[Either[GithubError, ReviewComment]](
+        Request[F](
+          uri = resolve(s"/repos/${repository.owner}/${repository.name}/pulls/comments/${id}"),
+          method = Method.GET
+        ).withHeaders(headers)
+      )(entityHandler[ReviewComment])
+    }
 
   // request:
   // POST /repos/:owner/:repo/pulls/:number/comments
@@ -146,16 +144,14 @@ final class PullRequestClient[F[_]](pool: Stream[F, Client[F]], base: Uri, repos
   @inline final def comment(
     id: Int, content: String,
     commit: String, path: String, position: Int) : F[Either[GithubError, Status[Int]]] =
-    pool.flatMap { client =>
-      Stream.eval (
-        client.fetch[Either[GithubError, Status[Int]]](
-          Request[F](
-            uri = resolve(s"repos/${repository.owner}/${repository.name}/pulls/${id}/comments"),
-            method = Method.POST
-          ).withHeaders(headers).withEntity(CreateReviewComment(content, commit, path, position))
-        )(entityHandler[Status[Int]])
-      )
-    }.compile.lastOrError
+    pool.use { client =>
+      client.fetch[Either[GithubError, Status[Int]]](
+        Request[F](
+          uri = resolve(s"repos/${repository.owner}/${repository.name}/pulls/${id}/comments"),
+          method = Method.POST
+        ).withHeaders(headers).withEntity(CreateReviewComment(content, commit, path, position))
+      )(entityHandler[Status[Int]])
+    }
 
   // request:
   // POST /repos/:owner/:repo/pulls/:number/comments
@@ -169,14 +165,12 @@ final class PullRequestClient[F[_]](pool: Stream[F, Client[F]], base: Uri, repos
   //
   //
   @inline final def reply(id: Int, content: String, reply_to: Int) : F[Either[GithubError, Status[Int]]] =
-    pool.flatMap { client =>
-      Stream.eval (
-        client.fetch[Either[GithubError, Status[Int]]](
-          Request[F](
-            uri = resolve(s"repos/${repository.owner}/${repository.name}/pulls/${id}/comments"),
-            method = Method.POST
-          ).withHeaders(headers).withEntity(ReplyReviewComment(content, reply_to))
-        )(entityHandler)
-      )
-    }.compile.lastOrError
+    pool.use { client =>
+      client.fetch[Either[GithubError, Status[Int]]](
+        Request[F](
+          uri = resolve(s"repos/${repository.owner}/${repository.name}/pulls/${id}/comments"),
+          method = Method.POST
+        ).withHeaders(headers).withEntity(ReplyReviewComment(content, reply_to))
+      )(entityHandler)
+    }
 }

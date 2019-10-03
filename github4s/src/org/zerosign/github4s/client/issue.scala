@@ -1,13 +1,13 @@
 package org.zerosign.github4s.client
 
-import cats.effect.{ ConcurrentEffect }
+import cats.effect.{ ConcurrentEffect, Resource }
 import fs2.Stream
 import org.http4s.Uri
 import org.http4s.client.Client
 import org.zerosign.github4s.data.Repository
 
 final class IssueClient[F[_]](
-  pool: Stream[F, Client[F]],
+  pool: Resource[F, Client[F]],
   base: Uri,
   repository: Repository,
   user: String,
@@ -93,30 +93,26 @@ final class IssueClient[F[_]](
 
   // GET /repos/:owner/:repo/issues/comments/:comment_id
   @inline final def fetch(id: Int) : F[Either[GithubError, IssueComment]] =
-    pool.flatMap { client =>
-      Stream.eval(
-        client.fetch[Either[GithubError, IssueComment]](
-          Request[F](
-            uri = base.withPath(s"/repos/${repository.owner}/${repository.name}/issues/comments/${id}"),
-            method = Method.GET
-          ).withHeaders(headers)
-        )(entityHandler[IssueComment])
-      )
-    }.compile.lastOrError
+    pool.use { client =>
+      client.fetch[Either[GithubError, IssueComment]](
+        Request[F](
+          uri = base.withPath(s"/repos/${repository.owner}/${repository.name}/issues/comments/${id}"),
+          method = Method.GET
+        ).withHeaders(headers)
+      )(entityHandler[IssueComment])
+    }
 
   // request:
   // POST /repos/:owner/:repo/issues/:number/comments
   //
   // { "body": "Me too" }
   @inline final def comment(id: Int, content: String) : F[Either[GithubError, Status[Int]]] =
-    pool.flatMap { client =>
-      Stream.eval (
-        client.fetch[Either[GithubError, Status[Int]]](
-          Request[F](
-            uri = base.withPath(s"repos/${repository.owner}/${repository.name}/issues/${id}/comments"),
-            method = Method.POST
-          ).withHeaders(headers).withEntity(CreateIssueComment(content))
-        )(entityHandler)
-      )
-    }.compile.lastOrError
+    pool.use { client =>
+      client.fetch[Either[GithubError, Status[Int]]](
+        Request[F](
+          uri = base.withPath(s"repos/${repository.owner}/${repository.name}/issues/${id}/comments"),
+          method = Method.POST
+        ).withHeaders(headers).withEntity(CreateIssueComment(content))
+      )(entityHandler)
+    }
 }

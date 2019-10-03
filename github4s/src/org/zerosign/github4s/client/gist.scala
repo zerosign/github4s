@@ -1,13 +1,11 @@
 package org.zerosign.github4s.client
 
-import cats.effect.{ ConcurrentEffect }
+import cats.effect.{ ConcurrentEffect, Resource }
 import fs2.Stream
 import org.http4s.Uri
 import org.http4s.client.Client
 
-// final class DiffClient[F[_]](pool: Stream[F, Client[F]], token: String) {}
-
-final class GistClient[F[_]](pool: Stream[F, Client[F]], base: Uri, user: String, token: String)
+final class GistClient[F[_]](pool: Resource[F, Client[F]], base: Uri, user: String, token: String)
   (implicit F: ConcurrentEffect[F]) extends GithubClient[F](pool, base, user, token) {
 
   import cats.syntax.either._
@@ -129,19 +127,17 @@ final class GistClient[F[_]](pool: Stream[F, Client[F]], base: Uri, user: String
   // GET /gists/:gist_id/:sha
   //
   @inline final def fetch(id: String, version: Option[String] = None) : F[Either[GithubError, Gist]] =
-    pool.flatMap { client =>
-      Stream.eval(
-        client.fetch[Either[GithubError, Gist]](
-          Request[F](
-            uri = version match {
-              case Some(v) => resolve(s"/gists/${id}/${v}")
-              case _       => resolve(s"/gists/${id}")
-            },
-            method = Method.GET
-          ).withHeaders(headers)
-        )(entityHandler[Gist])
-      )
-    }.compile.lastOrError
+    pool.use { client =>
+      client.fetch[Either[GithubError, Gist]](
+        Request[F](
+          uri = version match {
+            case Some(v) => resolve(s"/gists/${id}/${v}")
+            case _       => resolve(s"/gists/${id}")
+          },
+          method = Method.GET
+        ).withHeaders(headers)
+      )(entityHandler[Gist])
+    }
 
   //
   // request:
@@ -168,16 +164,14 @@ final class GistClient[F[_]](pool: Stream[F, Client[F]], base: Uri, user: String
   //
   //
   @inline final def create(files: Map[String, String], desc: Option[String] = None, public: Boolean = false) :
-      F[Either[GithubError, Status[String]]] = pool.flatMap { client =>
-    Stream.eval(
-      client.fetch[Either[GithubError, Status[String]]](
-        Request[F](
-          uri = resolve("/gists"),
-          method = Method.POST
-        ).withHeaders(headers).withEntity(CreateGist(files, public, desc.getOrElse("")))
-      )(entityHandler)
-    )
-  }.compile.lastOrError
+      F[Either[GithubError, Status[String]]] = pool.use { client =>
+    client.fetch[Either[GithubError, Status[String]]](
+      Request[F](
+        uri = resolve("/gists"),
+        method = Method.POST
+      ).withHeaders(headers).withEntity(CreateGist(files, public, desc.getOrElse("")))
+    )(entityHandler)
+  }
 
   //
   // request:
@@ -198,14 +192,12 @@ final class GistClient[F[_]](pool: Stream[F, Client[F]], base: Uri, user: String
   // }
   //
   @inline final def update(id: String, files: Map[String, UpdatedGist], desc: Option[String]) : F[Either[GithubError, Status[String]]] =
-    pool.flatMap { client =>
-      Stream.eval(
-        client.fetch[Either[GithubError, Status[String]]](
-          Request[F](
-            uri = resolve(s"/gists/${id}"),
-            method = Method.PATCH
-          ).withHeaders(headers).withEntity(UpdateGist(id, files, desc.getOrElse("")))
-        )(entityHandler)
-      )
-    }.compile.lastOrError
+    pool.use { client =>
+      client.fetch[Either[GithubError, Status[String]]](
+        Request[F](
+          uri = resolve(s"/gists/${id}"),
+          method = Method.PATCH
+        ).withHeaders(headers).withEntity(UpdateGist(id, files, desc.getOrElse("")))
+      )(entityHandler)
+    }
 }

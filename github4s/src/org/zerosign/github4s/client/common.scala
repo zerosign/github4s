@@ -1,12 +1,12 @@
 package org.zerosign.github4s.client
 
-import cats.effect.ConcurrentEffect
+import cats.effect.{Resource, ConcurrentEffect}
 import fs2.Stream
 import org.http4s.Uri
 import org.http4s.client.Client
 import org.http4s.client.dsl.Http4sClientDsl
 
-abstract class GithubClient[F[_]](pool: Stream[F, Client[F]], base: Uri, user: String, token: String)
+abstract class GithubClient[F[_]](pool: Resource[F, Client[F]], base: Uri, user: String, token: String)
   (implicit F: ConcurrentEffect[F]) extends Http4sClientDsl[F] {
 
   import java.util.Base64
@@ -125,15 +125,29 @@ abstract class GithubClient[F[_]](pool: Stream[F, Client[F]], base: Uri, user: S
   //   "updated_at": "2011-04-14T16:00:49Z"
   // }
 
-  @inline final def file(url: Uri) : Stream[F, Byte] = pool.flatMap { client =>
-    client.stream(
-      Request[F](
-        uri = url,
-        headers = headers
-      )
-    ) flatMap { response: Response[F] =>
-      logger.info(s"download file from: ${url} with status: ${response.status}")
-      response.body
+  @inline final def file(url: Uri) : F[Stream[F, Byte]] =
+    pool.use { client =>
+      F.delay(client.stream(
+        Request[F](
+          uri = url,
+          headers = headers
+        )
+      ) flatMap { response : Response[F] =>
+        logger.info(s"download file from: ${url} with status: ${response.status}")
+        response.body
+      })
     }
-  }
+  // TODO: @zerosign migration from Stream[F, Client[F]] to Resource[F, Client[F]]
+    // pool.use { client =>
+    //   client.stream(
+    //     Request[F](
+    //       uri = url,
+    //       headers = headers
+    //     )
+    //   ) flatMap { response: Response[F] =>
+    //     logger.info(s"download file from: ${url} with status: ${response.status}")
+    //     response.body
+    //   }
+    // }
+
 }

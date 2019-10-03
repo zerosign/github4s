@@ -32,10 +32,10 @@ trait Github4sModule extends ScalaModule {
 object packages {
 
   lazy val versions = Map(
-    "http4s" -> "0.21.0-M4",
-    "typelevel" -> "2.0.0-RC2",
-    "fs2" -> "1.1.0-M2",
-    "circe" -> "0.12.0-RC4",
+    "http4s" -> "0.21.0-M5",
+    "typelevel" -> "2.0.0",
+    "fs2" -> "2.0.1",
+    "circe" -> "0.12.1",
     "log4s" -> "1.8.2",
     "logback" -> "1.3.0-alpha4",
     "logstash" -> "6.2",
