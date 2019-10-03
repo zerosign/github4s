@@ -137,17 +137,4 @@ abstract class GithubClient[F[_]](pool: Resource[F, Client[F]], base: Uri, user:
         response.body
       })
     }
-  // TODO: @zerosign migration from Stream[F, Client[F]] to Resource[F, Client[F]]
-    // pool.use { client =>
-    //   client.stream(
-    //     Request[F](
-    //       uri = url,
-    //       headers = headers
-    //     )
-    //   ) flatMap { response: Response[F] =>
-    //     logger.info(s"download file from: ${url} with status: ${response.status}")
-    //     response.body
-    //   }
-    // }
-
 }
