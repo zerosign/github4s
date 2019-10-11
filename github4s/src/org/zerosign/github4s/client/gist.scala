@@ -5,6 +5,8 @@ import fs2.Stream
 import org.http4s.Uri
 import org.http4s.client.Client
 
+//
+//
 final class GistClient[F[_]](pool: Resource[F, Client[F]], base: Uri, user: String, token: String)
   (implicit F: ConcurrentEffect[F]) extends GithubClient[F](pool, base, user, token) {
 
