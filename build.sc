@@ -1,11 +1,21 @@
-import $ivy.`com.lihaoyi::mill-contrib-buildinfo:0.5.1-9-f9a999`
-import $ivy.`com.lihaoyi::mill-contrib-bloop:0.5.1-9-f9a999`
+interp.load.ivy("com.lihaoyi" %% "mill-contrib-buildinfo" % s"${mill.BuildInfo.millVersion}")
+interp.load.ivy("com.lihaoyi" %% "mill-contrib-bloop" % s"${mill.BuildInfo.millVersion}")
+
+@
+
 import mill._, scalalib._, publish._
 import contrib.BuildInfo
 
+import $ivy.`org.eclipse.jgit:org.eclipse.jgit:5.5.1.201910021850-r`
+
 final object Globals {
-  @inline final val version: String =
-    os.proc("git", "describe", "--tags").call().out.string.strip
+  import java.nio.file.Path
+  import org.eclipse.jgit.api.Git
+
+  @inline final val version : String =
+    Git.open(Path.of("./")
+      .toAbsolutePath.toFile).describe()
+      .setTags(true).call
 }
 
 trait Github4sModule extends ScalaModule {
