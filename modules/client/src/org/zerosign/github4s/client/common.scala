@@ -27,7 +27,7 @@ abstract class GithubClient[F[_]](pool: Resource[F, Client[F]], base: Uri, user:
   @inline protected[this] final def resolve(path: String): Uri =
     base.withPath(s"${path}")
 
-  final protected val headers = Headers(
+  final protected val headers = Headers.of(
     Seq(
       Header("Accept", "application/vnd.github.v3+json"),
       Header("Authorization", s"Basic ${encodedToken}")
@@ -41,8 +41,8 @@ abstract class GithubClient[F[_]](pool: Resource[F, Client[F]], base: Uri, user:
         name <- h.downField("login").as[String]
         `type` <- h.downField("type").as[String]
       } yield (User(id, name, `type`))
-    }
   }
+}
 
 
   implicit protected final val statusIntDecoder = new Decoder[Status[Int]] {
@@ -60,6 +60,7 @@ abstract class GithubClient[F[_]](pool: Resource[F, Client[F]], base: Uri, user:
 
   implicit protected final val statusStringDecoder = new Decoder[Status[String]] {
     final def apply(h: HCursor) : Decoder.Result[Status[String]] = {
+
       for {
         id <- h.downField("id").as[String]
         created <- h.downField("created_at").as[String]
